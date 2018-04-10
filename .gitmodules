@@ -1,0 +1,3 @@
+[submodule "slack-api"]
+	path = slack-api
+	url = git@github.com:m5/slack-api.git
