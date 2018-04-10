@@ -1,0 +1,4 @@
+dist/
+networks
+.stack-work
+*.swo
