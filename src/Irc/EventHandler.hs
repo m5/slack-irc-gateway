@@ -27,9 +27,10 @@ handleIrcMessage slack sendIrcMessage (Right message@(IRC.Message prefix cmd par
 handlePrivmsg :: SlackHandle -> (IRC.Message -> IO()) -> IRC.Message -> IO ()
 handlePrivmsg slack sendIrcMessage (IRC.Message prefix cmd params) = do
     let (channel:message:[]) = params
-    let mcid = channelIdFromName (getSession slack) (cs channel) 
+        sess = getSession slack
+    let mcid = channelIdFromName sess (cs channel) 
     case mcid of
-       Just cid -> sendMessage slack cid (cs message)
+       Just cid -> sendMessage slack cid $ encodeSlackText sess (cs message)
        Nothing -> sendIrcMessage $ debugIrcMessage $ "Could not send message, unknown channel: " ++ (cs channel)
 
 handlePing :: SlackHandle -> (IRC.Message -> IO()) -> IRC.Message -> IO ()

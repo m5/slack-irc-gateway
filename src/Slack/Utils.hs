@@ -9,6 +9,7 @@ import qualified HTMLEntities.Decoder as HD
 import Web.Slack
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Maybe (fromMaybe)
 
 
 normalizeChannels :: SlackSession -> [(ChannelId, Text)]
@@ -64,13 +65,34 @@ decodeSlackTag sess tagText = case slackTag  of
          otherwise -> tagText
     where slackTag = parseOnly slackTagParser tagText
 
+encodeSlackText :: SlackSession -> Text -> Text
+encodeSlackText sess ircText = tagsReplaced
+    where tagsReplaced = gsub [re|(@\w+)|] (encodeSlackUsername sess) ircText
+
+encodeSlackUsername :: SlackSession -> Text -> Text
+encodeSlackUsername sess atUsername = case maybeUserId of
+        Just userId -> "<@" `T.append` userId `T.append` ">"
+        Nothing -> atUsername
+    where maybeUserId = idFromUsername sess (T.tail atUsername)
 
 usernameFromId :: SlackSession -> UserId -> Text
 usernameFromId sess id = case matches of 
-                               u:_ -> _userName u
+                               u:_ -> bestUsername u
                                []  -> T.pack "unknown"
     where matches = filter (\u -> id == _userId u) users
           users   = _slackUsers sess
+          
+idFromUsername :: SlackSession -> Text -> Maybe Text
+idFromUsername sess username = case matches of 
+                               u:_ -> Just . _getId . _userId $ u
+                               []  -> Nothing
+    where matches = filter (\u -> username == bestUsername u) users
+          users   = _slackUsers sess
+
+bestUsername :: User -> Text
+bestUsername user = fromMaybe username displayNameMaybe
+  where displayNameMaybe = _profileDisplayName . _userProfile $ user
+        username = _userName user
 
 openChannels :: SlackSession -> [Channel]
 openChannels sess = filter (\c -> _channelIsOpen c || _channelIsMember c) $ (_slackChannels sess ++ _slackGroups sess)
