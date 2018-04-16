@@ -10,9 +10,11 @@ import qualified Data.Text  as T
 import qualified Network.IRC as IRC
 import qualified Data.ByteString as BS
 import Slack.Utils
+import Irc.Utils
 import Irc.Connection (debugIrcMessage)
 import Data.List (intercalate)
 import Control.Lens
+import Control.Monad.Trans.Except (runExceptT)
 
 handleIrcMessage :: SlackHandle -> (IRC.Message -> IO()) -> Either Text IRC.Message -> IO ()
 handleIrcMessage slack sendIrcMessage (Right message@(IRC.Message prefix cmd params)) = do
@@ -21,6 +23,7 @@ handleIrcMessage slack sendIrcMessage (Right message@(IRC.Message prefix cmd par
                    "NICK" -> handleNick
                    "PING" -> handlePing
                    "WHO" -> handleWho
+                   "JOIN" -> handleJoin
                    otherwise -> handleUnsupported
     handler slack sendIrcMessage message
 
@@ -58,38 +61,12 @@ handleWho slack sendIrcMessage (IRC.Message prefix cmd params) = do
          who:_ -> mapM_ sendIrcMessage who
          [] -> sendIrcMessage $ debugIrcMessage ("No channel found: " ++ (cs name))
 
+handleJoin :: SlackHandle -> (IRC.Message -> IO()) -> IRC.Message -> IO ()
+handleJoin slack sendIrcMessage (IRC.Message prefix cmd params) = do
+    let channels = map (T.tail . cs) params
+    runExceptT $ mapM_ (joinChannel slack) channels
+    return ()
+
 handleUnsupported :: SlackHandle -> (IRC.Message -> IO()) -> IRC.Message -> IO ()
 handleUnsupported slack sendIrcMessage message = do
     sendIrcMessage $ debugIrcMessage $ "Unsupported command: " ++ (cs $ IRC.showMessage message)
-
-buildWelcomeMessage :: SlackSession -> IRC.Message
-buildWelcomeMessage sess = IRC.Message thisServerName "001" [username, "Welcome to Slack!"]
-   where username = cs . _selfName . _slackSelf $ sess
-
-buildWhoResponse :: SlackSession -> Channel -> [IRC.Message]
-buildWhoResponse sess channel = [
-    IRC.Message thisServerName "353" [userName, "=",  channelName, memberNames],
-    IRC.Message thisServerName "366" [userName, cs channelName, "End of /NAMES list."]
-  ]
-    where userName = cs $ _selfName $ _slackSelf sess
-          channelName = cs $ T.cons '#' (_channelName channel)
-          memberNames = cs $ case _channelMembers channel of 
-                        Just members -> intercalate " " $ map (T.unpack . usernameFromId sess) members
-                        Nothing -> ""
-
-formatNickName :: Text -> IRC.Prefix
-formatNickName username = IRC.NickName (cs username) Nothing Nothing
-
-thisServerName :: Maybe IRC.Prefix
-thisServerName = Just $ IRC.Server "slack-gateway"
-
-buildJoinResponse :: SlackSession -> Channel -> [IRC.Message]
-buildJoinResponse sess channel = [
-    IRC.Message (Just (formatNickName userName)) "JOIN" [channelName],
-    IRC.Message thisServerName "332" [channelName]
-  ] ++ (buildWhoResponse sess channel)
-    where userName = _selfName $ _slackSelf sess
-          channelName = cs $ '#' `T.cons` (_channelName channel)
-          topic = case _channelTopic channel of
-                       Just t -> T.unpack $ _topicValue t
-                       Nothing -> ""

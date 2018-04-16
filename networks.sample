@@ -1,0 +1,7 @@
+[Your Slack Name]
+port=5001
+token=xoxp-your-slack-token
+
+[Another Slack Name]
+port=5002
+token=xoxp-another-slack-token

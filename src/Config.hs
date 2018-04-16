@@ -14,11 +14,8 @@ data NetworkConfiguration = NetworkConfiguration {
 
 getConfiguration :: String -> IO [NetworkConfiguration]
 getConfiguration fileName = do
-  configData <- cs <$> readFile "/home/mfivecoa/src/slack/gateway/networks"
+  configData <- cs <$> readFile fileName
   let configs = fromRight [] $ parseConfigurations configData
-
-  print configs
-
   return configs
 
 parseConfigurations :: Text -> Either String [NetworkConfiguration]

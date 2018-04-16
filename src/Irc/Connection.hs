@@ -37,10 +37,11 @@ startIrc messageHandler clientsVar port = do
                 line <- hGetLine h
                 clients <- readMVar clientsVar
                 let messageMaybe = IRC.decode $ B8.pack line
-                    debugMessage = cs $ fromMaybe 
-                      ("Couldn't decode message: " ++ line)
-                      ((cs . IRC.showMessage) `fmap` messageMaybe)
-                broadcastIrc clientsVar $ debugIrcMessage debugMessage
+                case messageMaybe of
+                    Just message -> return ()
+                    Nothing      -> broadcastIrc clientsVar $ 
+                        debugIrcMessage ("Couldn't decode message: " ++ line)
+                      
                 messageHandler 
                     (sendIrcMessage clientsVar h) 
                     $ case messageMaybe of

@@ -4,6 +4,8 @@ import Network
 import Control.Concurrent.MVar
 import Control.Concurrent (ThreadId)
 import Control.Concurrent.Thread 
+import System.Environment
+import System.Exit
 import System.IO
 import Control.Monad (unless, forever, void, liftM)
 import Web.Slack
@@ -14,12 +16,23 @@ import Irc.EventHandler (handleIrcMessage, formatNickName)
 import Slack.EventHandler (handleSlackMessage)
 import Config
 
+data Args = Args {
+    fileName :: String
+}
 
 main = withSocketsDo $ do
-    configs <- getConfiguration "config"
+    (Args filename) <- getArgs >>= parseArgs
+    configs <- getConfiguration filename
     forkResults <- mapM (startGateway) configs
     mapM_ id [waiter | (_, waiter) <- forkResults]
 
+parseArgs :: [String] -> IO Args
+parseArgs [] = do
+  progname <- getProgName
+  putStrLn $ "Usage: " ++ progname ++ " networksConfigFile"
+  exitWith ExitSuccess
+  
+parseArgs [filename] = return $ Args filename
 
 startGateway :: NetworkConfiguration -> IO (ThreadId, IO (Result ()))
 startGateway (NetworkConfiguration port slackToken) = forkIO $ do

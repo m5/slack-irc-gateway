@@ -37,11 +37,11 @@ resolver: lts-11.3
 # will not be run. This is useful for tweaking upstream packages.
 packages:
 - .
-- slack-api
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:
 - html-entities-1.1.4.2
+- slack-api
 
 # Override default flag values for local packages and extra-deps
 # flags: {}
